@@ -18,8 +18,27 @@ def divide(X, W):
     X_s = np.argsort(X)
     index_l = X_s[:Nef]
     index_h = X_s[Nef:]
-    print(Nef)
+    # print(Nef)
     return index_l, index_h
+
+
+def compute_weights(x, x1, w1, y, l, q, fpyx, fpxx):
+    n = len(x)
+    vq = np.zeros(n)
+    vpyx = np.zeros(n)
+    vpxx = np.zeros(n)
+
+    for i in range(n):
+        # Calculate probabilities and importance function
+        vpyx[i] = fpyx(y, x[i])
+        vpxx[i] = fpxx(x[i], x1[i], l)
+        vq[i] = q(x[i], x1[i], y)  # Still focus on a deeper understanding
+
+    # Compute weights
+    w = w1 * vpyx * vpxx / vq
+    w = w / sum(w)  # Normalize weights to one
+
+    return w
 
 
 L = 300  # Longitude of the series
@@ -76,18 +95,11 @@ for l in range(L):
 
         # Initialize Variables vector
         X = np.zeros(N)
+        # Sampling
         for i in range(N):
-            # Sampling
             X[i] = np.random.normal(loc=f(X_k1[i], l, 0), scale=sigma_w)
 
-            # Calculate probabilities and importance function
-            PYX[i] = pyx(Y_measured[l], X[i])
-            PXX[i] = pxx(X[i], X_k1[i], l)
-            Q[i] = q(X[i], X_k1[i], Y_measured[l])  # Still focus on a deeper understanding
-
-        # Compute weights
-        Ws = W_k1 * PXX * PYX / Q  # TODO Compute Weights with a function
-        W = Ws / sum(Ws)  # Normalize weights to one
+        W = compute_weights(X, X_k1, W_k1, Y_measured[l], l, q, pyx, pxx)
 
         # State variables estimation
         X_estimated[l] = sum(W * X)
@@ -102,20 +114,7 @@ for l in range(L):
             if rL[x] <= p_m:  # Mutation
                 X[CL[x]] = 2 * X[arg_H] - X[CL[x]]
 
-        # Recalculate weights
-        Q = np.zeros(N)
-        PYX = np.zeros(N)
-        PXX = np.zeros(N)
-
-        for i in range(N):
-            # Calculate probabilities and importance function
-            PYX[i] = pyx(Y_measured[l], X[i])
-            PXX[i] = pxx(X[i], X_k1[i], l)
-            Q[i] = q(X[i], X_k1[i], Y_measured[l])  # Still focus on a deeper understanding
-
-        # Compute weights
-        Ws = W_k1 * PXX * PYX / Q  # TODO Compute Weights with a function
-        W = Ws / sum(Ws)  # Normalize weights to one
+        W = compute_weights(X, X_k1, W_k1, Y_measured[l], l, q, pyx, pxx)
 
         # Resampling
         U = np.sort(abs(np.random.uniform(-1, 0, N)))  # Generate N elements fo Uniform distribution
