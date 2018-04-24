@@ -22,8 +22,36 @@ class ExNode:
     def __init__(self, size):
         self.size = size
 
+
+# Generates the isolation forest
+def i_forest(X, t, psi):
+    """
+    :param X: input data
+    :param t: number of trees
+    :param psi: subsampling size
+    :return: Returns an isolation forest
+    """
+
+    forest = []
+    height_limit = int(np.ceil(np.log2(psi)))
+    n = X.shape[0]
+
+    for i in range(t):
+        sample = X.iloc[np.random.choice(n, psi, replace=False)]
+        forest.append(i_tree(sample, 0, height_limit))
+
+    return forest
+
+
 # Generates a random isolation tree
 def i_tree(x, e, l):
+    """
+    Generates an isolation tree
+    :param x: Input data
+    :param e: Current Tree Height
+    :param l: Height limit
+    :return: Inner Node/ Extreme node
+    """
 
     if e >= l or x.size <= 1:
         return ExNode(x.shape[0])
@@ -39,10 +67,37 @@ def i_tree(x, e, l):
         return InNode(i_tree(xl, e+1, l), i_tree(xr, e+1, l), q, p)
 
 
-Data = pd.read_csv('Satellite.csv')
+def c(size):
+    h = np.log(size-1) + np.euler_gamma
+    return 2*h - (2*(size-1)/size)
 
-start = time.time()
-a = i_tree(Data, 1, 10)
-end = time.time()
+# Computes the leght of the path of the tree provided
+def path_length(x, T, e):
+    """
+    :param x: An instance
+    :param T: An isolation Tree
+    :param e: The current path lenght
+    :return:
+    """
+    if isinstance(T, ExNode):
+        return e + c(T.size) # TODO paper says toadd some qty, revise literature
 
-print(end-start)
+    attribute = T.s_atr
+    if x[attribute] < T.s_val:
+        return path_length(x, T.left, e+1)
+    else:
+        return path_length(x, T.right, e+1)
+
+
+# Main Program
+Data = pd.read_csv('Satellite/Satellite.csv', parse_dates=True)
+
+# Parameters to be set:
+samplingFactor = 0.1
+t = 20  # Number of trees
+
+# Calculates the sampling size
+m = int(Data.shape[0] * samplingFactor)
+
+forest = i_forest(Data, t, m)
+
